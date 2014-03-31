@@ -29,6 +29,12 @@ _LIST_MAPPING = {
     'date': 'date',
     'genre': 'genre',
     'performer': 'performer'}
+    
+_LIB_MAPPING = {
+    'spotify': 'spotify:',
+    'youtube': 'http:',
+    'soundcloud': 'soundcloud:'
+}
 
 
 def _query_from_mpd_search_parameters(parameters, mapping):
@@ -571,3 +577,27 @@ def readcomments(context, uri):
         support it. For example, on Ogg files, this lists the Vorbis comments.
     """
     pass
+
+@protocol.commands.add('libfind')
+def libfind(context, *args):
+    query = {}
+    args = list(args)
+    try:
+        while args:
+            libs = args.pop(0).lower().split('|')
+            uris = []
+            for l in libs:
+                lib = _LIB_MAPPING.get(l)
+                if not lib:
+                    raise exceptions.MpdArgError('invalid library: ' + l)
+                uris.append(lib)
+            if not args:
+                raise ValueError
+            query.setdefault('any', []).append(args.pop(0))
+    except ValueError:
+        return
+    
+    results = context.core.library.find_exact(uris=uris,**query).get()
+    result_tracks = _get_tracks(results)
+    return translator.tracks_to_mpd_format(result_tracks)
+    
